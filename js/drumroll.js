@@ -1980,6 +1980,7 @@ class GuideManager {
       <div class="guide-card-title">${item.title}</div>
       <div class="guide-card-text">${item.text}</div>
     `;
+    if (this.navBar) card.appendChild(this.navBar);
     this.labelsContainer.appendChild(card);
 
     // カードの配置位置計算
@@ -1990,13 +1991,16 @@ class GuideManager {
       cardX = window.innerWidth * 0.05;
       card.style.width = '90vw';
       card.style.maxWidth = '90vw';
+      const cardH = card.offsetHeight;
 
-      // 画面上部なら下に、下部なら上に配置
-      if (rect.bottom + 140 < window.innerHeight - 80) {
+      // 画面上部なら下に、下部なら上に配置（ナビを含むカードの実寸で判定）
+      if (rect.bottom + cardH + 14 < window.innerHeight - 12) {
         cardY = rect.bottom + 14;
       } else {
-        cardY = Math.max(65, rect.top - 140);
+        cardY = rect.top - cardH - 14;
       }
+      // 画面外はみ出し防止
+      cardY = Math.max(12, Math.min(window.innerHeight - cardH - 12, cardY));
     } else {
       card.style.maxWidth = '340px';
 

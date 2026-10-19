@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>DrumRoll - 簡易ドラム打ち込みソフト</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -212,7 +212,7 @@
         <div class="pads-drag-handle">
           <div class="handle-title">
             <span class="rec-indicator" id="rec-status-indicator"></span>
-            <span id="record-status">リアルタイム演奏パッド (PCキー: A, S, D, F / J, K, L, ;)</span>
+            <span id="record-status"><span class="status-main">リアルタイム演奏パッド</span><span class="status-keys-hint"> (PCキー: A, S, D, F / J, K, L, ;)</span></span>
           </div>
           <button id="btn-minimize-pads" class="handle-btn" title="パッドを折りたたむ">−</button>
         </div>
@@ -246,8 +246,8 @@
         <button id="btn-close-guide" class="btn guide-close-btn">✕ 閉じる (Esc)</button>
       </div>
 
-      <!-- ガイドナビゲーションバー（1ステップずつ進む） -->
-      <div id="guide-nav-bar" class="guide-nav-bar">
+      <!-- ガイドナビゲーションバー（1ステップずつ進む）。JSで解説カード内に配置される -->
+      <div id="guide-nav-bar" class="guide-card-nav">
         <button id="guide-prev-step" class="btn guide-nav-btn">◀ 前へ</button>
         <span id="guide-step-indicator" class="guide-step-indicator">1 / 6</span>
         <button id="guide-next-step" class="btn guide-nav-btn primary">次へ ▶</button>

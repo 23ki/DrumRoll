@@ -56,22 +56,35 @@ textarea,
   touch-action: manipulation;
 }
 
+html {
+  height: 100%;
+}
+
 body {
   font-family: 'JetBrains Mono', 'Noto Sans JP', monospace, sans-serif;
   background-color: var(--bg-primary);
   color: var(--text-main);
   overflow: hidden;
+  height: 100%;
   height: 100vh;
+  height: var(--app-height, 100dvh);
+  width: 100%;
   width: 100vw;
   font-size: 13px;
+  position: fixed;
+  inset: 0;
 }
 
 #app {
   display: flex;
   flex-direction: column;
+  height: 100%;
   height: 100vh;
+  height: var(--app-height, 100dvh);
+  width: 100%;
   width: 100vw;
   position: relative;
+  overflow: hidden;
 }
 
 /* ===== トランスポートバー ===== */
@@ -593,7 +606,7 @@ option,
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(22, 26, 36, 0.88);
+  background: rgba(22, 26, 36, 0.92);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-top: 1px solid rgba(255, 255, 255, 0.12);
@@ -602,12 +615,12 @@ option,
   display: flex;
   flex-direction: column;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  padding: 8px 16px 12px;
-  max-height: 45vh;
+  padding: 8px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  max-height: 48vh;
 }
 
 .floating-pads-panel.minimized {
-  transform: translateY(calc(100% - 32px));
+  transform: translateY(calc(100% - 32px - env(safe-area-inset-bottom, 0px)));
 }
 
 .floating-pads-panel.hide {
@@ -765,14 +778,19 @@ option,
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
   height: 100vh;
-  /* ★ 改善2: 背景の透過度を上げて奥のUI（ボタンやピアノロール）がくっきり透けるように！ */
-  background: rgba(0, 0, 0, 0.45);
+  height: var(--app-height, 100dvh);
+  /* 背景の透過度を上げて奥のUIがくっきり透けるように */
+  background: rgba(0, 0, 0, 0.52);
   z-index: 1000;
   pointer-events: auto;
   opacity: 1;
   transition: opacity 0.2s ease;
+  overflow: hidden;
 }
 
 .guide-overlay.hide {
@@ -792,8 +810,8 @@ option,
 
 .guide-top-bar {
   position: absolute;
-  top: 14px;
-  right: 18px;
+  top: max(14px, env(safe-area-inset-top, 14px));
+  right: max(18px, env(safe-area-inset-right, 18px));
   display: flex;
   align-items: center;
   gap: 12px;
@@ -890,27 +908,13 @@ option,
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ★ 改善3: PCでもスマホでも1ステップずつ進める共通ナビバー */
-.guide-nav-bar {
-  position: absolute;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: rgba(18, 22, 31, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 8px 18px;
-  border-radius: 30px;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.75);
-  z-index: 1005;
-}
-
+/* ナビ（前へ / 次へ）は解説カード内に配置する（画面下端に固定しない） */
 .guide-nav-btn {
   padding: 6px 14px;
   font-size: 12px;
   border-color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 .guide-nav-btn.primary {
@@ -930,6 +934,29 @@ option,
   color: #ffffff;
   min-width: 48px;
   text-align: center;
+}
+
+/* カード内ナビバー（前へ / 次へ） */
+.guide-card-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  gap: 8px;
+}
+
+.guide-card-nav .guide-nav-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.guide-card-nav .guide-step-indicator {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
 }
 
 /* ===== モバイル・レスポンシブ ===== */
@@ -1004,10 +1031,6 @@ option,
 }
 
 @media (max-width: 720px) {
-  .guide-mobile-nav {
-    display: flex;
-  }
-
   .guide-card {
     max-width: 90vw;
     font-size: 12px;
@@ -1018,6 +1041,11 @@ option,
   :root {
     --track-header-width: 85px;
     --cell-height: 38px;
+  }
+
+  /* スマホではステータスバーを非表示にし、縦画面スペースを演奏パッドとピアノロールに還元 */
+  #status-bar {
+    display: none;
   }
 
   .header-right {
@@ -1036,14 +1064,29 @@ option,
     display: none;
   }
 
+  /* 演奏パッドのスマホ最適化：セーフエリアを確保し見切れを防止 */
+  .floating-pads-panel {
+    padding: 6px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+    max-height: 52vh;
+  }
+
+  .status-keys-hint {
+    display: none;
+  }
+
+  .pads-drag-handle {
+    padding-bottom: 4px;
+  }
+
   .pads-grid {
     grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(2, 50px);
-    gap: 5px;
+    grid-template-rows: repeat(2, 46px);
+    gap: 6px;
   }
 
   .pad-name {
-    font-size: 12px;
+    font-size: 11px;
+    font-weight: 600;
   }
 
   .pad-key {
@@ -1052,5 +1095,51 @@ option,
 
   .tool-tip-hint {
     display: none;
+  }
+
+  /* ガイドのスマホ最適化：セーフエリアを考慮した配置 */
+  .guide-top-bar {
+    top: max(8px, env(safe-area-inset-top, 8px));
+    right: max(10px, env(safe-area-inset-right, 10px));
+  }
+
+  .guide-title {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .guide-close-btn {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+
+  .guide-nav-btn {
+    padding: 7px 14px;
+    font-size: 12px;
+  }
+
+  .guide-step-indicator {
+    font-size: 12px;
+    min-width: 42px;
+  }
+}
+
+/* 画面の高さが小さいデバイス（横向きスマホなど）向け最適化 */
+@media (max-height: 520px) {
+  .floating-pads-panel {
+    padding: 4px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .pads-grid {
+    grid-template-rows: repeat(2, 36px);
+    gap: 4px;
+  }
+
+  .pad-card {
+    border-radius: 4px;
+  }
+
+  .pad-name {
+    font-size: 10px;
   }
 }
