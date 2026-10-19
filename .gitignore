@@ -1,0 +1,11 @@
+# Logs
+*.log
+*.out
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temp files
+*.tmp

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DrumRoll - 簡易ドラム打ち込みソフト</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="dark-theme">
+  <div id="app">
+    <!-- ヘッダー / トランスポートバー -->
+    <header id="transport-bar">
+      <div class="header-left">
+        <div class="logo">
+          <span class="logo-icon">🥁</span>
+          <span class="logo-text">Drum<span class="accent">Roll</span></span>
+        </div>
+        <!-- パッドのフロート表示切替ボタン -->
+        <button id="btn-toggle-pads" class="btn pad-toggle-btn active" title="演奏パッドの表示 / 非表示">
+          <span class="icon">⚡</span> パッド表示
+        </button>
+      </div>
+
+      <div class="header-center">
+        <!-- 再生コントロール -->
+        <div class="playback-controls">
+          <button id="btn-stop" class="btn icon-btn" title="停止（2度押しで先頭へ）">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+          </button>
+          <button id="btn-play" class="btn icon-btn play-btn" title="再生 / 一時停止 (Space)">
+            <svg id="icon-play" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
+            <svg id="icon-pause" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="display:none;"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+          </button>
+          <button id="btn-record" class="btn icon-btn rec-btn" title="リアルタイム録音 (R)">
+            <span class="rec-dot"></span>
+          </button>
+        </div>
+
+        <!-- テンポ / 拍子 / 小節 / メトロノーム -->
+        <div class="transport-settings">
+          <div class="setting-item bpm-setting">
+            <label for="input-bpm">BPM</label>
+            <input type="number" id="input-bpm" min="40" max="260" value="120" step="1">
+          </div>
+          <div class="setting-item beats-setting">
+            <label for="select-beats">拍子</label>
+            <select id="select-beats">
+              <option value="4" selected>4 / 4</option>
+              <option value="3">3 / 4</option>
+            </select>
+          </div>
+          <div class="setting-item bars-setting">
+            <label for="select-bars">小節数</label>
+            <select id="select-bars">
+              <option value="1">1 小節</option>
+              <option value="2" selected>2 小節</option>
+              <option value="4">4 小節</option>
+              <option value="8">8 小節</option>
+            </select>
+          </div>
+          <div class="setting-item countin-setting">
+            <label for="select-countin">カウント</label>
+            <select id="select-countin">
+              <option value="1" selected>1 小節</option>
+              <option value="0">なし</option>
+            </select>
+          </div>
+          <button id="btn-metronome" class="btn toggle-btn" title="メトロノーム ON/OFF">
+            <span class="icon">⏱️</span> メトロノーム
+          </button>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- プリセットメニュー -->
+        <div class="dropdown">
+          <button id="btn-presets-menu" class="btn presets-btn">
+            🎵 プリセット ▾
+          </button>
+          <div id="presets-dropdown" class="dropdown-menu">
+            <button class="dropdown-item preset-item" data-preset="basic8">🥁 王道8ビート (BPM 120)</button>
+            <button class="dropdown-item preset-item" data-preset="dance">🪩 ダンス風 (BPM 128)</button>
+            <button class="dropdown-item preset-item" data-preset="citypop">🌃 シティポップ (BPM 105)</button>
+            <button class="dropdown-item preset-item" data-preset="hiphop">🎤 ヒップホップ (BPM 140)</button>
+            <button class="dropdown-item preset-item" data-preset="rock">⚡ ロック (BPM 175)</button>
+            <button class="dropdown-item preset-item" data-preset="shuffle">🎷 シャッフル (BPM 95)</button>
+            <button class="dropdown-item preset-item" data-preset="latin">🌴 ラテン風 (BPM 96)</button>
+            <button class="dropdown-item preset-item" data-preset="drumroll">🎪 ドラムロール (BPM 125)</button>
+          </div>
+        </div>
+
+        <!-- アクション：Undo / Redo / クオンタイズ / クリア / 書き出し -->
+        <button id="btn-undo" class="btn tool-btn" title="元に戻す (Ctrl+Z)" disabled>
+          ↶ 戻す
+        </button>
+        <button id="btn-redo" class="btn tool-btn" title="やり直し (Ctrl+Y)" disabled>
+          ↷ 進む
+        </button>
+        <button id="btn-guide" class="btn tool-btn guide-btn" title="画面の使い方ガイドを表示">
+          ❔ ガイド
+        </button>
+        <button id="btn-quantize" class="btn tool-btn" title="現在のグリッド幅にノートのタイミングを補正">
+          クオンタイズ
+        </button>
+        <button id="btn-clear" class="btn tool-btn danger-hover" title="全ノート消去">
+          クリア
+        </button>
+        <div class="dropdown">
+          <button id="btn-export-menu" class="btn export-btn">
+            書き出し ▾
+          </button>
+          <div id="export-dropdown" class="dropdown-menu">
+            <button id="export-midi" class="dropdown-item">🎼 MIDIファイル (.mid)</button>
+            <button id="export-wav" class="dropdown-item">🔊 WAVオーディオ (.wav)</button>
+            <button id="export-share-url" class="dropdown-item">🔗 共有URLをコピー</button>
+            <button id="export-json" class="dropdown-item">💾 プロジェクト保存 (JSON)</button>
+            <label class="dropdown-item upload-label">
+              📂 プロジェクト読み込み
+              <input type="file" id="import-json" accept=".json" style="display:none;">
+            </label>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main id="main-content">
+      <!-- ツールバー：グリッド幅設定 ＆ ズームコントロール -->
+      <div class="pianoroll-toolbar">
+        <div class="toolbar-left">
+          <div class="grid-res-selector">
+            <span class="label">グリッド幅:</span>
+            <button class="grid-btn" data-grid="8">1/8</button>
+            <button class="grid-btn active" data-grid="16">1/16</button>
+            <button class="grid-btn" data-grid="32">1/32</button>
+            <button class="grid-btn" data-grid="12">1/8T (3連)</button>
+            <button class="grid-btn" data-grid="24">1/16T (6連)</button>
+          </div>
+        </div>
+        
+        <div class="toolbar-right">
+          <div class="zoom-controls">
+            <span class="label">ズーム:</span>
+            <button id="btn-zoom-out" class="zoom-btn" title="ズームアウト (Shift+ホイール下)">🔍−</button>
+            <span id="zoom-level-text" class="zoom-level">100%</span>
+            <button id="btn-zoom-in" class="zoom-btn" title="ズームイン (Shift+ホイール上)">🔍＋</button>
+          </div>
+          <div class="tool-tip-hint">
+            ホイール: 左右スクロール | Shift+ホイール / ピンチ: ズーム
+          </div>
+        </div>
+      </div>
+
+      <!-- ピアノロールメイン領域 -->
+      <div class="pianoroll-container" id="pianoroll-container">
+        <!-- 左側：トラックヘッダー（静的HTML＋初期化） -->
+        <div class="track-headers" id="track-headers">
+          <div class="track-row-header" data-track="crash" style="border-left: 4px solid var(--pad-crash);">
+            <div class="track-name-group"><span class="track-name">Crash</span></div>
+            <span class="track-pitch-note">C#2</span>
+          </div>
+          <div class="track-row-header" data-track="hitom" style="border-left: 4px solid var(--pad-hitom);">
+            <div class="track-name-group"><span class="track-name">High Tom</span></div>
+            <span class="track-pitch-note">D2</span>
+          </div>
+          <div class="track-row-header" data-track="lowtom" style="border-left: 4px solid var(--pad-lowtom);">
+            <div class="track-name-group"><span class="track-name">Low Tom</span></div>
+            <span class="track-pitch-note">A1</span>
+          </div>
+          <div class="track-row-header" data-track="ophat" style="border-left: 4px solid var(--pad-ophat);">
+            <div class="track-name-group"><span class="track-name">Open Hat</span></div>
+            <span class="track-pitch-note">A#1</span>
+          </div>
+          <div class="track-row-header" data-track="clhat" style="border-left: 4px solid var(--pad-clhat);">
+            <div class="track-name-group"><span class="track-name">Closed Hat</span></div>
+            <span class="track-pitch-note">F#1</span>
+          </div>
+          <div class="track-row-header" data-track="clap" style="border-left: 4px solid var(--pad-clap);">
+            <div class="track-name-group"><span class="track-name">Clap</span></div>
+            <span class="track-pitch-note">D#1</span>
+          </div>
+          <div class="track-row-header" data-track="snare" style="border-left: 4px solid var(--pad-snare);">
+            <div class="track-name-group"><span class="track-name">Snare</span></div>
+            <span class="track-pitch-note">D1</span>
+          </div>
+          <div class="track-row-header" data-track="kick" style="border-left: 4px solid var(--pad-kick);">
+            <div class="track-name-group"><span class="track-name">Kick</span></div>
+            <span class="track-pitch-note">C1</span>
+          </div>
+        </div>
+
+        <!-- 右側：タイムライン＆グリッド -->
+        <div class="timeline-grid-wrapper" id="timeline-grid-wrapper">
+          <!-- ルーラー（小節・拍表示＋再生ヘッド＋ループ） -->
+          <div class="ruler" id="ruler">
+            <div class="loop-range-marker" id="loop-marker"></div>
+            <div class="playhead" id="playhead"></div>
+            <div class="ruler-ticks" id="ruler-ticks"></div>
+          </div>
+          <!-- キャンバスグリッド -->
+          <div class="grid-canvas-container" id="grid-container">
+            <canvas id="grid-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- 半透明フローティング・ドラムパッド (常時またはトグル表示) -->
+      <div id="floating-pads" class="floating-pads-panel show">
+        <div class="pads-drag-handle">
+          <div class="handle-title">
+            <span class="rec-indicator" id="rec-status-indicator"></span>
+            <span id="record-status">リアルタイム演奏パッド (PCキー: A, S, D, F / J, K, L, ;)</span>
+          </div>
+          <button id="btn-minimize-pads" class="handle-btn" title="パッドを折りたたむ">−</button>
+        </div>
+        <div class="pads-grid" id="drum-pads">
+          <!-- JSでパッドを初期化 -->
+        </div>
+      </div>
+    </main>
+
+    <!-- 下部ステータスバー -->
+    <footer id="status-bar">
+      <div id="status-message">準備完了 - スペースキーで再生/停止</div>
+      <div class="status-meta">
+        <span id="current-position">1.1.00</span>
+        <span class="divider">|</span>
+        <span id="audio-state-badge">WebAudio Synthesizer Ready</span>
+      </div>
+    </footer>
+
+    <!-- インタラクティブ・ガイドオーバーレイ -->
+    <div id="guide-overlay" class="guide-overlay hide">
+      <svg id="guide-svg" class="guide-svg"></svg>
+      <div id="guide-labels-container" class="guide-labels-container"></div>
+      
+      <!-- ガイド上部ヘッダー（閉じるボタン） -->
+      <div class="guide-top-bar">
+        <div class="guide-title">
+          <span class="guide-badge">GUIDE</span>
+          <span>使い方ツアー</span>
+        </div>
+        <button id="btn-close-guide" class="btn guide-close-btn">✕ 閉じる (Esc)</button>
+      </div>
+
+      <!-- ガイドナビゲーションバー（1ステップずつ進む） -->
+      <div id="guide-nav-bar" class="guide-nav-bar">
+        <button id="guide-prev-step" class="btn guide-nav-btn">◀ 前へ</button>
+        <span id="guide-step-indicator" class="guide-step-indicator">1 / 6</span>
+        <button id="guide-next-step" class="btn guide-nav-btn primary">次へ ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- スクリプト：CORS問題回避のため単一スクリプトで確実に実行 -->
+  <script src="js/drumroll.js"></script>
+</body>
+</html>
