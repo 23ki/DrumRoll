@@ -1921,6 +1921,8 @@ class GuideManager {
   close() {
     this.isOpen = false;
     this.overlay.classList.add('hide');
+    this.svg.innerHTML = '';
+    this.labelsContainer.innerHTML = '';
   }
 
   nextStep() {
@@ -2291,6 +2293,7 @@ class App {
     if (this.btnPresetsMenu) {
       this.btnPresetsMenu.addEventListener('click', (e) => {
         e.stopPropagation();
+        this.placeDropdown(this.btnPresetsMenu, this.presetsDropdown);
         this.presetsDropdown.classList.toggle('show');
         if (this.exportDropdown) this.exportDropdown.classList.remove('show');
       });
@@ -2314,6 +2317,7 @@ class App {
     // エクスポートメニュー
     this.btnExportMenu.addEventListener('click', (e) => {
       e.stopPropagation();
+      this.placeDropdown(this.btnExportMenu, this.exportDropdown);
       this.exportDropdown.classList.toggle('show');
       if (this.presetsDropdown) this.presetsDropdown.classList.remove('show');
     });
@@ -2380,6 +2384,12 @@ class App {
     window.addEventListener('resize', () => {
       this.pianoRoll.resize();
     });
+  }
+
+  placeDropdown(button, menu) {
+    const rect = button.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + 6}px`;
+    menu.style.right = `${window.innerWidth - rect.right}px`;
   }
 
   loadPreset(key) {
