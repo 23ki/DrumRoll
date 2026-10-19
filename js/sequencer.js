@@ -27,6 +27,7 @@ export class Sequencer {
     this.scheduleAheadTime = 0.1; // 先読みスケジュール時間 (秒)
     this.currentStep = 0;
     this.nextStepTime = 0.0;
+    this.playbackStartTime = null;
     this.timerId = null;
 
     // 録音関連
@@ -140,12 +141,22 @@ export class Sequencer {
     this.synth.play(trackId, null, velocity);
 
     if (this.isPlaying && this.isRecording) {
-      // 現在の再生時刻から最も近いステップを算出
       const audioCtx = this.synth.ctx;
       if (!audioCtx) return;
 
-      const elapsed = audioCtx.currentTime - (this.nextStepTime - this.stepDuration);
-      const fractionalStep = this.currentStep + (elapsed / this.stepDuration);
+      if (this.playbackStartTime === null) {
+        this.playbackStartTime = audioCtx.currentTime - (this.currentStep * this.stepDuration);
+      }
+
+      const latencyCompensation = Math.min(0.04, (audioCtx.outputLatency || audioCtx.baseLatency || 0.02));
+      const adjustedTime = audioCtx.currentTime - latencyCompensation;
+      const elapsedSec = adjustedTime - this.playbackStartTime;
+      const loopDuration = this.totalSteps * this.stepDuration;
+
+      let songTime = elapsedSec % loopDuration;
+      if (songTime < 0) songTime += loopDuration;
+
+      const fractionalStep = songTime / this.stepDuration;
       let targetStep = Math.round(fractionalStep) % this.totalSteps;
       if (targetStep < 0) targetStep += this.totalSteps;
 
@@ -159,7 +170,9 @@ export class Sequencer {
 
     this.isPlaying = true;
     this.currentStep = 0;
-    this.nextStepTime = this.synth.ctx.currentTime + 0.05;
+    const startAudioTime = this.synth.ctx.currentTime + 0.05;
+    this.nextStepTime = startAudioTime;
+    this.playbackStartTime = startAudioTime;
 
     this.timerId = setInterval(() => this.scheduler(), this.lookaheadMs);
 
@@ -174,6 +187,7 @@ export class Sequencer {
   stop() {
     this.isPlaying = false;
     this.isRecording = false;
+    this.playbackStartTime = null;
     if (this.timerId) {
       clearInterval(this.timerId);
       this.timerId = null;

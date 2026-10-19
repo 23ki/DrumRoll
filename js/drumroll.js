@@ -388,6 +388,7 @@ class Sequencer {
     // 現在の再生位置 (Tick単位)
     this.currentTick = 0;
     this.nextTickTime = 0.0;
+    this.playbackStartTime = null;
     this.timerId = null;
 
     this.lookaheadMs = 20.0;
@@ -503,21 +504,49 @@ class Sequencer {
     // 叩いた瞬間の発音
     this.synth.play(trackId, null, velocity);
 
-    if (this.isPlaying && this.isRecording && !this.isCountingIn) {
+    if (this.isPlaying && this.isRecording) {
       const audioCtx = this.synth.ctx;
       if (!audioCtx) return;
 
-      const elapsed = audioCtx.currentTime - (this.nextTickTime - (this.ticksPerGrid * this.tickDuration));
-      const tickOffset = Math.round(elapsed / this.tickDuration);
-      let targetTick = (this.currentTick + tickOffset) % this.totalTicks;
-      if (targetTick < 0) targetTick += this.totalTicks;
+      // カウントイン中：本番第1拍(tick 0)の直前（半拍以内）に叩かれたフライング打鍵を救済
+      if (this.isCountingIn) {
+        if (this.playbackStartTime) {
+          const beatSec = 60.0 / this.bpm;
+          const timeUntilMain = this.playbackStartTime - audioCtx.currentTime;
+          // カウントイン終了前 0.5拍以内なら本番 tick 0 のノートとして記録
+          if (timeUntilMain <= beatSec * 0.5 && timeUntilMain > -0.05) {
+            const targetTick = 0;
+            const key = `${trackId}_${targetTick}`;
+            this.recentHits.set(key, Date.now());
+            this.addNote(trackId, targetTick, velocity);
+          }
+        }
+        return;
+      }
 
-      // 現在のグリッド幅にスナップ
+      // 基準開始時刻が未設定の場合は安全策として現在時刻から逆算
+      if (this.playbackStartTime === null) {
+        this.playbackStartTime = audioCtx.currentTime - (this.currentTick * this.tickDuration);
+      }
+
+      // レイテンシ補正（Web Audioの出力バッファ遅延と入力遅延を考慮、過補正を防ぐため上限40ms）
+      const latencyCompensation = Math.min(0.04, (audioCtx.outputLatency || audioCtx.baseLatency || 0.02));
+      const adjustedTime = audioCtx.currentTime - latencyCompensation;
+
+      // 楽曲タイムライン上の経過秒数
+      const elapsedSec = adjustedTime - this.playbackStartTime;
+      const loopDuration = this.totalTicks * this.tickDuration;
+
+      let songTime = elapsedSec % loopDuration;
+      if (songTime < 0) songTime += loopDuration;
+
+      // 正確なTick位置とグリッド吸着
+      const rawTick = songTime / this.tickDuration;
       const grid = this.ticksPerGrid;
-      targetTick = Math.round(targetTick / grid) * grid;
+      let targetTick = Math.round(rawTick / grid) * grid;
       if (targetTick >= this.totalTicks) targetTick = 0;
 
-      // ★ 改善点1: 二重発音防止のため、手動入力したノートを直近キャッシュに記録
+      // 二重発音防止
       const key = `${trackId}_${targetTick}`;
       this.recentHits.set(key, Date.now());
 
@@ -533,7 +562,10 @@ class Sequencer {
     if (this.currentTick >= this.totalTicks) {
       this.currentTick = 0;
     }
-    this.nextTickTime = this.synth.ctx.currentTime + 0.03;
+    const startAudioTime = this.synth.ctx.currentTime + 0.03;
+    this.nextTickTime = startAudioTime;
+    // tick 0 の絶対オーディオ時刻を同期
+    this.playbackStartTime = startAudioTime - (this.currentTick * this.tickDuration);
 
     this.timerId = setInterval(() => this.scheduler(), this.lookaheadMs);
 
@@ -550,6 +582,7 @@ class Sequencer {
     this.isPlaying = false;
     this.isRecording = false;
     this.isCountingIn = false;
+    this.playbackStartTime = null;
 
     if (this.timerId) {
       clearInterval(this.timerId);
@@ -609,6 +642,7 @@ class Sequencer {
     this.isPlaying = true;
     this.isRecording = true;
     this.isCountingIn = true;
+    this.currentTick = 0;
     if (this.onPlaybackStateChange) {
       this.onPlaybackStateChange(this.isPlaying, this.isRecording);
     }
@@ -633,16 +667,20 @@ class Sequencer {
       }, delay);
     }
 
-    // カウントイン完了後に本番スタート
-    const totalCountDuration = totalCountBeats * beatIntervalSec;
+    // 本番第1拍(tick 0)が鳴る正確なオーディオ時刻に同期
+    const mainStartTime = startTime + (totalCountBeats * beatIntervalSec);
+    this.playbackStartTime = mainStartTime;
+
+    // カウントイン完了タイマー
+    const delayToMainStart = Math.max(0, (mainStartTime - this.synth.ctx.currentTime) * 1000);
     setTimeout(() => {
       if (!this.isPlaying || !this.isCountingIn) return;
       this.isCountingIn = false;
       if (this.onCountInChange) this.onCountInChange(null);
-      this.nextTickTime = this.synth.ctx.currentTime + 0.02;
+      this.nextTickTime = mainStartTime;
       this.timerId = setInterval(() => this.scheduler(), this.lookaheadMs);
       if (this.onStatusMessage) this.onStatusMessage('● 録音中...');
-    }, totalCountDuration * 1000);
+    }, delayToMainStart);
   }
 
   scheduler() {
@@ -1216,7 +1254,9 @@ class PianoRoll {
       this.updatePlayhead(tick);
       if (this.sequencer.isPlaying) {
         // 再生中なら即座にその位置からスケジュール再同期
-        this.sequencer.nextTickTime = this.synth.ctx.currentTime + 0.02;
+        const nextTime = this.synth.ctx.currentTime + 0.02;
+        this.sequencer.nextTickTime = nextTime;
+        this.sequencer.playbackStartTime = nextTime - (tick * this.sequencer.tickDuration);
       }
     });
   }
