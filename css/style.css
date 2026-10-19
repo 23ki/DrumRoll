@@ -82,7 +82,12 @@ body {
 }
 
 .header-right {
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.btn-text-short {
+  display: none;
 }
 
 .guide-btn {
@@ -354,6 +359,13 @@ body {
   font-size: 11px;
   flex-shrink: 0;
   gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.pianoroll-toolbar::-webkit-scrollbar {
+  display: none;
 }
 
 .toolbar-left, .toolbar-right {
@@ -443,6 +455,10 @@ body {
 
 .track-row-header {
   height: var(--cell-height);
+  min-height: var(--cell-height);
+  max-height: var(--cell-height);
+  flex-shrink: 0;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -533,6 +549,11 @@ body {
 #grid-canvas {
   display: block;
   cursor: crosshair;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* ===== 半透明フローティング演奏パッド ===== */
@@ -886,24 +907,68 @@ body {
     flex-wrap: wrap;
     height: auto;
     padding: 6px 10px;
-  }
-
-  .header-center {
-    order: 3;
-    width: 100%;
-    justify-content: space-between;
-    padding-top: 4px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    overflow-x: auto;
+    gap: 6px;
   }
 
   .header-left {
     order: 1;
+    flex-shrink: 0;
   }
 
   .header-right {
     order: 2;
     margin-left: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    max-width: calc(100% - 160px);
+    padding-bottom: 2px;
+  }
+
+  .header-right::-webkit-scrollbar {
+    display: none;
+  }
+
+  .header-center {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    gap: 12px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .header-center::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 840px) {
+  .header-right {
+    gap: 5px;
+  }
+
+  .header-right .btn {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  /* 戻す・進む・ガイドの文字を非表示にしてアイコンのみに */
+  #btn-undo .btn-text,
+  #btn-redo .btn-text,
+  #btn-guide .btn-text {
+    display: none;
+  }
+
+  /* クオンタイズ → 補正、書き出し → 出力 に短縮 */
+  .btn-text-full {
+    display: none;
+  }
+  .btn-text-short {
+    display: inline;
   }
 }
 
@@ -924,7 +989,15 @@ body {
     --cell-height: 38px;
   }
 
+  .header-right {
+    max-width: calc(100% - 46px);
+  }
+
   .logo-text {
+    display: none;
+  }
+
+  #btn-toggle-pads .btn-text {
     display: none;
   }
 

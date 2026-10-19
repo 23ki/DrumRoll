@@ -771,6 +771,7 @@ class PianoRoll {
     this.baseBeatWidth = 112; 
     this.zoomScale = 1.0;
     this.trackHeight = 48;
+    this.updateTrackHeight();
 
     this.isDragging = false;
     this.dragMode = null;
@@ -783,6 +784,10 @@ class PianoRoll {
     this.setupStaticTrackHeaders();
     this.setupEvents();
     this.setupZoomAndScroll();
+
+    window.addEventListener('resize', () => {
+      this.resize();
+    });
   }
 
   get beatWidth() {
@@ -849,37 +854,6 @@ class PianoRoll {
         }
       }, { passive: false });
     }
-
-    // ★ 改善点4: スマホ用ピンチイン / ピンチアウト操作
-    this.canvas.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        const dist = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
-        this.pinchStartDistance = dist;
-        this.pinchStartScale = this.zoomScale;
-      }
-    }, { passive: false });
-
-    this.canvas.addEventListener('touchmove', (e) => {
-      if (e.touches.length === 2 && this.pinchStartDistance > 0) {
-        e.preventDefault();
-        const dist = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
-        const ratio = dist / this.pinchStartDistance;
-        this.setZoom(this.pinchStartScale * ratio);
-      }
-    }, { passive: false });
-
-    this.canvas.addEventListener('touchend', (e) => {
-      if (e.touches.length < 2) {
-        this.pinchStartDistance = 0;
-      }
-    });
   }
 
   setupStaticTrackHeaders() {
@@ -896,7 +870,15 @@ class PianoRoll {
     });
   }
 
+  updateTrackHeight() {
+    const computed = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-height'));
+    if (computed && !isNaN(computed)) {
+      this.trackHeight = computed;
+    }
+  }
+
   resize() {
+    this.updateTrackHeight();
     const totalTicks = this.sequencer.totalTicks;
     const totalWidth = totalTicks * this.tickWidth;
     const totalHeight = DRUM_TRACKS.length * this.trackHeight;
@@ -1100,11 +1082,8 @@ class PianoRoll {
       return null;
     };
 
-    const getGridPos = (e) => {
+    const getGridPos = (clientX, clientY) => {
       const rect = this.canvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
       const x = clientX - rect.left;
       const y = clientY - rect.top;
 
@@ -1119,40 +1098,40 @@ class PianoRoll {
       return null;
     };
 
-    const handlePointerDown = (e) => {
+    // ========================================================
+    // PCマウス操作: 左クリック=単発配置/消去、右クリック=消しゴムドラッグ
+    // ========================================================
+    const handleMouseDown = (e) => {
       this.synth.init();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       const isRightClick = (e.button === 2);
+      const isLeftClick = (e.button === 0);
+
+      if (!isLeftClick && !isRightClick) return;
+
+      const hitExisting = getExistingNoteAtPos(e.clientX, e.clientY);
 
       if (window.app && window.app.history) {
         window.app.history.pushState();
       }
 
-      this.isDragging = true;
-
-      // 1. まず既存ノートの上を直接クリックしたか判定
-      const hitExisting = getExistingNoteAtPos(clientX, clientY);
-
       if (isRightClick) {
-        // 右クリックは強制「削除」モード (PCのDAW操作)
+        // 右クリック: 消しゴムドラッグ開始
+        this.isDragging = true;
         this.dragMode = 'remove';
         if (hitExisting) {
           this.sequencer.removeNoteAt(hitExisting.track.id, hitExisting.note.tick, false);
         } else {
-          const pos = getGridPos(e);
+          const pos = getGridPos(e.clientX, e.clientY);
           if (pos) this.sequencer.removeNoteAt(pos.track.id, pos.tick, false);
         }
-      } else {
-        // 通常クリック / タップ
+      } else if (isLeftClick) {
+        // 左クリック: 単発トグルのみ（ドラッグ連続配置は行わない）
+        this.isDragging = false;
+        this.dragMode = null;
         if (hitExisting) {
-          // ★ 解決策1: グリッド設定に関係なく、既存ノートの上を押したら「削除」を最優先！
-          this.dragMode = 'remove';
           this.sequencer.removeNoteAt(hitExisting.track.id, hitExisting.note.tick, false);
         } else {
-          // 空き地を押した場合は現在のグリッド幅に沿って「追加」
-          this.dragMode = 'add';
-          const pos = getGridPos(e);
+          const pos = getGridPos(e.clientX, e.clientY);
           if (pos) {
             this.sequencer.addNote(pos.track.id, pos.tick, 0.9, false);
             this.synth.play(pos.track.id);
@@ -1162,13 +1141,11 @@ class PianoRoll {
       this.render();
     };
 
-    const handlePointerMove = (e) => {
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      const hitExisting = getExistingNoteAtPos(clientX, clientY);
-      const pos = getGridPos(e);
+    const handleMouseMove = (e) => {
+      const hitExisting = getExistingNoteAtPos(e.clientX, e.clientY);
+      const pos = getGridPos(e.clientX, e.clientY);
 
-      // マウスカーソル形状のフィードバック
+      // マウスカーソル形状
       if (!this.isDragging) {
         if (hitExisting) {
           this.canvas.style.cursor = 'pointer';
@@ -1177,7 +1154,7 @@ class PianoRoll {
         }
       }
 
-      // ホバーハイライトの更新（既存ノート上ならホバー枠を消す）
+      // ホバーハイライト
       if (pos && !hitExisting) {
         if (!this.hoverPos || this.hoverPos.trackId !== pos.track.id || this.hoverPos.tick !== pos.tick) {
           this.hoverPos = { trackId: pos.track.id, tick: pos.tick };
@@ -1190,15 +1167,8 @@ class PianoRoll {
         }
       }
 
-      if (!this.isDragging) return;
-
-      if (this.dragMode === 'add') {
-        if (pos && !this.sequencer.hasNoteAt(pos.track.id, pos.tick)) {
-          this.sequencer.addNote(pos.track.id, pos.tick, 0.9, false);
-          this.synth.play(pos.track.id);
-          this.render();
-        }
-      } else if (this.dragMode === 'remove') {
+      // 右クリックドラッグ消しゴムのみ連続処理
+      if (this.isDragging && this.dragMode === 'remove') {
         if (hitExisting) {
           this.sequencer.removeNoteAt(hitExisting.track.id, hitExisting.note.tick, false);
           this.render();
@@ -1209,16 +1179,14 @@ class PianoRoll {
       }
     };
 
-    const handlePointerUp = () => {
+    const handleMouseUp = () => {
       this.isDragging = false;
       this.dragMode = null;
     };
 
-    this.canvas.addEventListener('mousedown', handlePointerDown);
-    this.canvas.addEventListener('mousemove', handlePointerMove);
-    window.addEventListener('mouseup', handlePointerUp);
-
-    // 右クリックメニューの抑制（右クリック消しゴム用）
+    this.canvas.addEventListener('mousedown', handleMouseDown);
+    this.canvas.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
     this.canvas.addEventListener('mouseleave', () => {
@@ -1228,17 +1196,113 @@ class PianoRoll {
       }
     });
 
+    // ========================================================
+    // スマホタッチ操作:
+    // 1本指タップ = 配置/消去 (1回のみ確実に入力、青い選択や二重発火なし)
+    // 1本指スワイプ = タイムライン左右移動 (ノーツは置かれない)
+    // 2本指ピンチ = ズームイン/ズームアウト (ノーツは置かれない)
+    // ========================================================
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartScrollLeft = 0;
+    let isTouchSwiping = false;
+    let isPinching = false;
+    let pinchStartDistance = 0;
+    let pinchStartScale = 1.0;
+
     this.canvas.addEventListener('touchstart', (e) => {
-      handlePointerDown(e);
+      e.preventDefault();
+      this.synth.init();
+
+      if (e.touches.length >= 2) {
+        // 2本指ピンチ開始
+        isPinching = true;
+        isTouchSwiping = false;
+        pinchStartDistance = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        pinchStartScale = this.zoomScale;
+        return;
+      }
+
+      // 1本指タッチ開始
+      isPinching = false;
+      isTouchSwiping = false;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      touchStartScrollLeft = this.wrapperEl ? this.wrapperEl.scrollLeft : 0;
     }, { passive: false });
 
     window.addEventListener('touchmove', (e) => {
-      if (this.isDragging) {
-        handlePointerMove(e);
+      if (isPinching && e.touches.length >= 2 && pinchStartDistance > 0) {
+        e.preventDefault();
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const ratio = dist / pinchStartDistance;
+        this.setZoom(pinchStartScale * ratio);
+        return;
+      }
+
+      if (e.touches.length === 1 && !isPinching) {
+        const dx = e.touches[0].clientX - touchStartX;
+        const dy = e.touches[0].clientY - touchStartY;
+
+        // 6px超動いたらスワイプ移動と判定
+        if (!isTouchSwiping && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+          isTouchSwiping = true;
+        }
+
+        if (isTouchSwiping && this.wrapperEl) {
+          e.preventDefault();
+          this.wrapperEl.scrollLeft = touchStartScrollLeft - dx;
+        }
       }
     }, { passive: false });
 
-    window.addEventListener('touchend', handlePointerUp);
+    window.addEventListener('touchend', (e) => {
+      if (isPinching) {
+        if (e.touches.length < 2) {
+          isPinching = false;
+          pinchStartDistance = 0;
+        }
+        return;
+      }
+
+      // スワイプ移動を行わずに指を離した ＝「タップ」！
+      if (!isTouchSwiping && e.changedTouches.length > 0) {
+        e.preventDefault();
+        const touch = e.changedTouches[0];
+        const hitExisting = getExistingNoteAtPos(touch.clientX, touch.clientY);
+
+        if (window.app && window.app.history) {
+          window.app.history.pushState();
+        }
+
+        if (hitExisting) {
+          // 既存ノートの上をタップ → 削除
+          this.sequencer.removeNoteAt(hitExisting.track.id, hitExisting.note.tick, false);
+        } else {
+          // 空き地をタップ → 配置
+          const pos = getGridPos(touch.clientX, touch.clientY);
+          if (pos) {
+            this.sequencer.addNote(pos.track.id, pos.tick, 0.9, false);
+            this.synth.play(pos.track.id);
+          }
+        }
+        this.render();
+      }
+
+      isTouchSwiping = false;
+    });
+
+    window.addEventListener('touchcancel', () => {
+      isTouchSwiping = false;
+      isPinching = false;
+      pinchStartDistance = 0;
+    });
 
     // ★ 改善点2: ルーラークリックで位置変更＆その位置から再生できるように設定
     const ruler = document.getElementById('ruler');

@@ -20,7 +20,7 @@
         </div>
         <!-- パッドのフロート表示切替ボタン -->
         <button id="btn-toggle-pads" class="btn pad-toggle-btn active" title="演奏パッドの表示 / 非表示">
-          <span class="icon">⚡</span> パッド表示
+          <span class="icon">⚡</span><span class="btn-text"> パッド表示</span>
         </button>
       </div>
 
@@ -94,23 +94,23 @@
 
         <!-- アクション：Undo / Redo / クオンタイズ / クリア / 書き出し -->
         <button id="btn-undo" class="btn tool-btn" title="元に戻す (Ctrl+Z)" disabled>
-          ↶ 戻す
+          <span class="icon">↶</span><span class="btn-text"> 戻す</span>
         </button>
         <button id="btn-redo" class="btn tool-btn" title="やり直し (Ctrl+Y)" disabled>
-          ↷ 進む
+          <span class="icon">↷</span><span class="btn-text"> 進む</span>
         </button>
         <button id="btn-guide" class="btn tool-btn guide-btn" title="画面の使い方ガイドを表示">
-          ❔ ガイド
+          <span class="icon">❔</span><span class="btn-text"> ガイド</span>
         </button>
         <button id="btn-quantize" class="btn tool-btn" title="現在のグリッド幅にノートのタイミングを補正">
-          クオンタイズ
+          <span class="btn-text-full">クオンタイズ</span><span class="btn-text-short">補正</span>
         </button>
         <button id="btn-clear" class="btn tool-btn danger-hover" title="全ノート消去">
           クリア
         </button>
         <div class="dropdown">
           <button id="btn-export-menu" class="btn export-btn">
-            書き出し ▾
+            <span class="btn-text-full">書き出し ▾</span><span class="btn-text-short">出力 ▾</span>
           </button>
           <div id="export-dropdown" class="dropdown-menu">
             <button id="export-midi" class="dropdown-item">🎼 MIDIファイル (.mid)</button>

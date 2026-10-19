@@ -18,6 +18,7 @@ export class PianoRoll {
     // グリッド寸法設定
     this.stepWidth = 28; // 1ステップあたりの横幅 (px)
     this.trackHeight = 48; // 1トラックの高さ (px)
+    this.updateTrackHeight();
 
     this.isDragging = false;
     this.dragMode = null; // 'add' or 'remove'
@@ -25,6 +26,17 @@ export class PianoRoll {
     this.initTrackHeaders();
     this.setupEvents();
     this.render();
+
+    window.addEventListener('resize', () => {
+      this.resize();
+    });
+  }
+
+  updateTrackHeight() {
+    const computed = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-height'));
+    if (computed && !isNaN(computed)) {
+      this.trackHeight = computed;
+    }
   }
 
   initTrackHeaders() {
@@ -53,6 +65,7 @@ export class PianoRoll {
   }
 
   resize() {
+    this.updateTrackHeight();
     const totalSteps = this.sequencer.totalSteps;
     const totalWidth = totalSteps * this.stepWidth;
     const totalHeight = DRUM_TRACKS.length * this.trackHeight;
