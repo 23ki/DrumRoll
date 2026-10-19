@@ -1189,6 +1189,10 @@ class PianoRoll {
     window.addEventListener('mouseup', handleMouseUp);
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
+    // キャンバスのみ touch-action: none を適用（ボタン操作を妨げない）
+    // ※ CSS側で #grid-canvas に touch-action: none が設定されているため、
+    //   ここでは追加のpreventDefaultは不要。ボタン類は touch-action: manipulation で保護済み。
+
     this.canvas.addEventListener('mouseleave', () => {
       if (this.hoverPos) {
         this.hoverPos = null;
@@ -1211,6 +1215,11 @@ class PianoRoll {
     let pinchStartScale = 1.0;
 
     this.canvas.addEventListener('touchstart', (e) => {
+      // キャンバス上でのタッチのみ処理
+      const target = e.target;
+      const isOnCanvas = target === this.canvas || this.canvas.contains(target);
+      if (!isOnCanvas) return;
+
       e.preventDefault();
       this.synth.init();
 
@@ -1236,7 +1245,10 @@ class PianoRoll {
 
     window.addEventListener('touchmove', (e) => {
       if (isPinching && e.touches.length >= 2 && pinchStartDistance > 0) {
-        e.preventDefault();
+        // ピンチ中はキャンバス上の操作のみ処理
+        if (e.target === this.canvas || this.canvas.contains(e.target)) {
+          e.preventDefault();
+        }
         const dist = Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
@@ -1255,9 +1267,14 @@ class PianoRoll {
           isTouchSwiping = true;
         }
 
+        // キャンバス上でスワイプ中の場合のみ preventDefault
         if (isTouchSwiping && this.wrapperEl) {
-          e.preventDefault();
-          this.wrapperEl.scrollLeft = touchStartScrollLeft - dx;
+          const target = e.target;
+          const isOnCanvas = target === this.canvas || this.canvas.contains(target);
+          if (isOnCanvas) {
+            e.preventDefault();
+            this.wrapperEl.scrollLeft = touchStartScrollLeft - dx;
+          }
         }
       }
     }, { passive: false });
@@ -1273,26 +1290,32 @@ class PianoRoll {
 
       // スワイプ移動を行わずに指を離した ＝「タップ」！
       if (!isTouchSwiping && e.changedTouches.length > 0) {
-        e.preventDefault();
         const touch = e.changedTouches[0];
-        const hitExisting = getExistingNoteAtPos(touch.clientX, touch.clientY);
+        const target = e.target || document.elementFromPoint(touch.clientX, touch.clientY);
+        
+        // キャンバス上でのタップの場合のみノーツ操作
+        const isOnCanvas = target === this.canvas || this.canvas.contains(target);
+        if (isOnCanvas) {
+          e.preventDefault();
+          const hitExisting = getExistingNoteAtPos(touch.clientX, touch.clientY);
 
-        if (window.app && window.app.history) {
-          window.app.history.pushState();
-        }
-
-        if (hitExisting) {
-          // 既存ノートの上をタップ → 削除
-          this.sequencer.removeNoteAt(hitExisting.track.id, hitExisting.note.tick, false);
-        } else {
-          // 空き地をタップ → 配置
-          const pos = getGridPos(touch.clientX, touch.clientY);
-          if (pos) {
-            this.sequencer.addNote(pos.track.id, pos.tick, 0.9, false);
-            this.synth.play(pos.track.id);
+          if (window.app && window.app.history) {
+            window.app.history.pushState();
           }
+
+          if (hitExisting) {
+            // 既存ノートの上をタップ → 削除
+            this.sequencer.removeNoteAt(hitExisting.track.id, hitExisting.note.tick, false);
+          } else {
+            // 空き地をタップ → 配置
+            const pos = getGridPos(touch.clientX, touch.clientY);
+            if (pos) {
+              this.sequencer.addNote(pos.track.id, pos.tick, 0.9, false);
+              this.synth.play(pos.track.id);
+            }
+          }
+          this.render();
         }
-        this.render();
       }
 
       isTouchSwiping = false;

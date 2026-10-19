@@ -42,6 +42,20 @@
   touch-action: manipulation;
 }
 
+button,
+input,
+select,
+textarea,
+.btn,
+.dropdown-item,
+.grid-btn,
+.zoom-btn,
+.grid-res-selector button,
+.toolbar-left button,
+.toolbar-right button {
+  touch-action: manipulation;
+}
+
 body {
   font-family: 'JetBrains Mono', 'Noto Sans JP', monospace, sans-serif;
   background-color: var(--bg-primary);
@@ -554,6 +568,23 @@ body {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* ピアノロール以外の領域（ヘッダー、ツールバー、パッド等）はタッチ操作を許可 */
+header,
+#transport-bar,
+.pianoroll-toolbar,
+#floating-pads,
+#status-bar,
+.guide-overlay,
+button,
+input,
+select,
+option,
+.dropdown-menu,
+.dropdown-item {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(255, 255, 255, 0.15);
 }
 
 /* ===== 半透明フローティング演奏パッド ===== */
